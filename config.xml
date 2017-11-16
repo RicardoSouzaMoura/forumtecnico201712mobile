@@ -8,7 +8,6 @@
         Apache Cordova Team
     </author>
     <content src="index.html" />
-    <plugin name="cordova-plugin-whitelist" spec="1" />
     <access origin="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
@@ -18,9 +17,16 @@
     <allow-intent href="geo:*" />
     <platform name="android">
         <allow-intent href="market:*" />
+        <preference name="android-minSdkVersion" value="16" />
     </platform>
     <platform name="ios">
         <allow-intent href="itms:*" />
         <allow-intent href="itms-apps:*" />
     </platform>
+    <engine name="ios" spec="^4.2.1" />
+    <engine name="android" spec="^5.2.2" />
+    <plugin name="kapsel-plugin-logon" spec="~3.14.16" />
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.2" />
+    <plugin name="kapsel-plugin-logger" spec="~3.14.16" />
+    <plugin name="kapsel-plugin-push" spec="~3.14.16" />
 </widget>

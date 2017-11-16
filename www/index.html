@@ -1,49 +1,180 @@
-<!DOCTYPE html>
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
 <html>
     <head>
-        <!--
-        Customize this policy to fit your own app's needs. For more guidance, see:
-            https://github.com/apache/cordova-plugin-whitelist/blob/master/README.md#content-security-policy
-        Some notes:
-            * gap: is required only on iOS (when using UIWebView) and is needed for JS->native communication
-            * https://ssl.gstatic.com is required only on Android and is needed for TalkBack to function properly
-            * Disables use of inline scripts in order to mitigate risk of XSS vulnerabilities. To change this:
-                * Enable inline JS: add 'unsafe-inline' to default-src
-        -->
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
-        <meta name="format-detection" content="telephone=no">
-        <meta name="msapplication-tap-highlight" content="no">
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
-        <link rel="stylesheet" type="text/css" href="css/index.css">
-        <title>Hello World</title>
+        <script type="text/javascript" charset="utf-8" src="js/serverContext.js"></script>
+        <script type="text/javascript" charset="utf-8" src="cordova.js"></script>
+        <script>
+            applicationContext = null;
+
+            window.onerror = onError; 
+            var startTime = null;
+            
+            function onError(msg, url, line) {
+                console.log("EventLogging: onError");
+                var idx = url.lastIndexOf("/");
+                var file = "unknown";
+                if (idx > -1) {
+                    file = url.substring(idx + 1);
+                }
+                alert("An error occurred in " + file + " (at line # " + line + "): " + msg);
+                console.log("EventLogging: An error occurred in " + file + " (at line # " + line + "): " + msg);
+                return false; //suppressErrorAlert;
+            }
+            
+            function init() {
+                console.log("EventLogging: init");
+                if (sap.Logger) {
+                    sap.Logger.setLogLevel(sap.Logger.DEBUG);  //enables the display of debug log messages from the Kapsel plugins.
+                    sap.Logger.debug("Log level set to DEBUG");
+                }
+                sap.Logon.init(logonSuccessCallback, logonErrorCallback, appId, context);
+            }
+            
+            function register() {
+               console.log("EventLogging: register");
+               sap.Logon.init(logonSuccessCallback, logonErrorCallback, appId, context);
+            }
+
+            function logonErrorCallback(error) {
+                console.log("EventLogging: logonErrorCallback:  " + JSON.stringify(error));
+                if (device.platform == "Android") {  //Not supported on iOS
+                    navigator.app.exitApp();
+                }
+            }
+            
+            function unRegister() {
+                console.log("EventLogging: unRegister");
+                try {
+                    sap.Logon.core.deleteRegistration(logonUnregisterSuccessCallback, errorCallback);
+                }
+                catch (e) {
+                    alert("problem with unregister");
+                }
+            }
+            
+            function logonSuccessCallback(result) {
+                console.log("EventLogging: logonSuccessCallback " + JSON.stringify(result));
+                applicationContext = result;
+                startTime = performance.now();
+                if (window.localStorage.getItem("isPushRegistered") == "true") {
+                    initPush();  //faster then calling registerForPush
+                }
+                else {
+                    window.localStorage.setItem("isPushRegistered", "false");
+                    registerForPush();
+                }
+            }
+            
+            function logonUnregisterSuccessCallback(result) {
+                console.log("EventLogging: logonUnregisterSuccessCallback");
+                alert("Logon Unregistration success");
+                applicationContext = null;
+                window.localStorage.setItem("isPushRegistered", "false");
+            }
+            
+            function errorCallback(e) {
+                console.log("EventLogging: errorCallback " + JSON.stringify(e));
+                alert("An error occurred " + JSON.stringify(e));
+            }
+
+            function registerForPush() {
+                console.log("EventLogging: registerForPush");
+                var nTypes = sap.Push.notificationType.SOUNDS | sap.Push.notificationType.ALERT;
+                sap.Push.registerForNotificationTypes(nTypes, pushRegistrationSuccess, pushRegistrationFailure, processNotification, 858665191039 /* optional GCM Sender ID */);
+            }
+
+            function initPush() {
+                console.log("EventLogging: initPush");
+                sap.Push.initPush(processNotification);
+            }
+
+            function unregisterForPush() {
+                console.log("EventLogging: unregisterForPush");
+                var nTypes = sap.Push.notificationType.SOUNDS | sap.Push.notificationType.ALERT;
+                sap.Push.unregisterForNotificationTypes(pushUnregistrationCallback);
+            }
+
+            function pushRegistrationSuccess(result) {
+                console.log("EventLogging: pushRegistrationSuccess" + JSON.stringify(result));
+                window.localStorage.setItem("isPushRegistered", "true");
+            }
+            
+            function pushRegistrationFailure(errorInfo) {
+                console.log("EventLogging: pushRegistrationFailure  " + JSON.stringify(errorInfo));                
+                alert("Error while registering for Push.  " + JSON.stringify(errorInfo));
+            }
+
+            function pushUnregistrationCallback(result) {
+                console.log("EventLogging: pushUnregistration: " + JSON.stringify(result));
+                alert("Successfully unregistered for Push: " + JSON.stringify(result));
+                window.localStorage.setItem("isPushRegistered", "false");
+            }
+
+            function processNotification(notification) {
+                var endTime = performance.now();
+                console.log("EventLogging Perf: " + ((endTime - startTime)/1000).toFixed(3) + " seconds from logonSuccess till message received");
+                alert("in processNotification: " + JSON.stringify(notification));
+                console.log("EventLogging: processNotification: " + JSON.stringify(notification));
+                if (sap.Push.setPushFeedbackStatus && notification.additionalData) {  //SP15 new feature
+                    sap.Push.setPushFeedbackStatus('consumed', notification.additionalData.notificationId, pushFeedbackStatusSuccessCallback, pushFeedbackStatusErrorCallback);
+                }
+            }
+
+            function pushFeedbackStatusSuccessCallback(status) {
+                console.log("EventLogging: set the push feedback status to consumed");
+            }
+
+            function pushFeedbackStatusErrorCallback(status) {
+                console.log("EventLogging: push feedback error: " + JSON.stringify(status));
+            }
+
+            function onLoad() {
+                console.log("EventLogging: onLoad");
+            }
+
+            function onBeforeUnload() {
+                console.log("EventLogging: onBeforeUnLoad");
+            }
+
+            function onUnload() {
+                console.log("EventLogging: onUnload");
+            }
+
+            function onPause() {
+                console.log("EventLogging: onPause");
+            }
+
+            function onResume() {
+                console.log("EventLogging: onResume");
+            }
+
+            function onSapResumeSuccess() {
+                console.log("EventLogging: onSapResumeSuccess");
+            }
+
+            function onSapResumeError(error) {
+                console.log("EventLogging: onSapResumeError " + JSON.stringify(error));
+            }
+
+            function onSapLogonSuccess() {
+                console.log("EventLogging: onSapLogonSuccess");
+            }
+
+            document.addEventListener("deviceready", init, false);
+            document.addEventListener("pause", onPause, false);
+            document.addEventListener("resume", onResume, false);
+            document.addEventListener("onSapResumeSuccess", onSapResumeSuccess, false);
+            document.addEventListener("onSapLogonSuccess", onSapLogonSuccess, false);
+            document.addEventListener("onSapResumeError", onSapResumeError, false);
+        </script>
     </head>
-    <body>
-        <div class="app">
-            <h1>Apache Cordova</h1>
-            <div id="deviceready" class="blink">
-                <p class="event listening">Connecting to Device</p>
-                <p class="event received">Device is Ready</p>
-            </div>
-        </div>
-        <script type="text/javascript" src="cordova.js"></script>
-        <script type="text/javascript" src="js/index.js"></script>
+    <body onload="onLoad()" onbeforeunload="onBeforeUnload()" onunload="onUnload()" >
+        <h1>Push Sample</h1>
+        <button id="register" onclick="register()">Register</button>
+        
+        <button id="unregister" onclick="unRegister()">Unregister</button>
+        <button onclick="unregisterForPush()">Unregister For Push</button>
+        <br>
+
     </body>
 </html>
