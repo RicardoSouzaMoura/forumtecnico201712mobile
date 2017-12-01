@@ -3,12 +3,35 @@
         <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
         <script type="text/javascript" charset="utf-8" src="js/serverContext.js"></script>
         <script type="text/javascript" charset="utf-8" src="cordova.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
         <script>
             applicationContext = null;
+            var mensagens = [];
+            // window.localStorage.setItem("mensagens", JSON.stringify(mensagens));
 
             window.onerror = onError; 
             var startTime = null;
-            
+            function registerPushApi() {
+                var regContext = applicationContext.registrationContext;
+                var connection = "NodeAPISubscription";
+                var protocol = regContext.https ? "https://" : "http://";
+                var url = protocol + regContext.serverHost + ":" + regContext.serverPort + "/" + connection;
+                var requestBody = {
+                    username: regContext.user,
+                    deviceModel: device.model,
+                    deviceType: device.platform,
+                    deviceOsVersion: device.version
+                };
+
+                sap.AuthProxy.sendRequest("POST", url, requestBody, pushApiSuccessCB, pushApiErrorCB);
+            }
+            function pushApiSuccessCB() {
+
+            }
+            function pushApiErrorCB() {
+
+            }
+
             function onError(msg, url, line) {
                 console.log("EventLogging: onError");
                 var idx = url.lastIndexOf("/");
@@ -27,6 +50,7 @@
                     sap.Logger.setLogLevel(sap.Logger.DEBUG);  //enables the display of debug log messages from the Kapsel plugins.
                     sap.Logger.debug("Log level set to DEBUG");
                 }
+                mensagens = JSON.parse(window.localStorage.getItem("mensagens") || '[]');
                 sap.Logon.init(logonSuccessCallback, logonErrorCallback, appId, context);
             }
             
@@ -63,6 +87,7 @@
                     window.localStorage.setItem("isPushRegistered", "false");
                     registerForPush();
                 }
+                renderTable();
             }
             
             function logonUnregisterSuccessCallback(result) {
@@ -113,11 +138,45 @@
             function processNotification(notification) {
                 var endTime = performance.now();
                 console.log("EventLogging Perf: " + ((endTime - startTime)/1000).toFixed(3) + " seconds from logonSuccess till message received");
-                alert("in processNotification: " + JSON.stringify(notification));
-                console.log("EventLogging: processNotification: " + JSON.stringify(notification));
+                if (mensagens.length==0){
+                    insertHeader();
+                }
+                mensagens.push(notification);
+
+                insertMensagem(notification);
+                window.localStorage.setItem("mensagens", JSON.stringify(mensagens));
+                
+                console.log("EventLogging: processNotification: " + JSON.stringify(mensagens));
                 if (sap.Push.setPushFeedbackStatus && notification.additionalData) {  //SP15 new feature
                     sap.Push.setPushFeedbackStatus('consumed', notification.additionalData.notificationId, pushFeedbackStatusSuccessCallback, pushFeedbackStatusErrorCallback);
                 }
+            }
+            function renderTable() {
+                if (mensagens.length>0){
+                    insertHeader();
+                }
+                
+                for (mensagem of mensagens){
+                    insertMensagem(mensagem);
+                }
+            }
+            function insertHeader(){
+                var table = document.getElementById("mensagens");
+                var row = table.insertRow();
+                var cell1 = row.insertCell(0);
+                cell1.style.fontWeight = "bold";
+                var cell2 = row.insertCell(1);
+                cell2.style.fontWeight = "bold";
+                cell1.innerHTML = "Mensagem";
+                cell2.innerHTML = "Data";
+            }
+            function insertMensagem(mensagem){
+                var table = document.getElementById("mensagens");
+                var row = table.insertRow();
+                var cell1 = row.insertCell(0);
+                var cell2 = row.insertCell(1);
+                cell1.innerHTML = mensagem.title;
+                cell2.innerHTML = mensagem.data;
             }
 
             function pushFeedbackStatusSuccessCallback(status) {
@@ -169,12 +228,19 @@
         </script>
     </head>
     <body onload="onLoad()" onbeforeunload="onBeforeUnload()" onunload="onUnload()" >
-        <h1>Push Sample</h1>
-        <button id="register" onclick="register()">Register</button>
-        
-        <button id="unregister" onclick="unRegister()">Unregister</button>
-        <button onclick="unregisterForPush()">Unregister For Push</button>
-        <br>
-
+        <div class="form-group">
+            <div class="form-control">
+                <h1>Push Sample</h1>
+            </div>
+            <div class="form-control">
+                <button id="register" class="btn btn-primary col-xs-4" onclick="register()">Register</button>
+                <button id="unregister" class="btn btn-secondary col-xs-4" onclick="unRegister()">Unregister</button>
+                <button class="btn btn-secondary col-xs-4" onclick="unregisterForPush()">Unsubscribe</button>
+            </div>
+            <div class="form-control">
+                <table id="mensagens">
+                </table>
+            </div>
+        </div>
     </body>
 </html>

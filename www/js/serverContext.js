@@ -8,8 +8,8 @@ var context = {
     "serverPort": "9081",  //443 for SAP Cloud Platform Mobile Services
     //"multiUser": true,
     //"useLocalStorage": false,
-    "user": "UPN5",          //For demo purposes, specify the user name and password you wish to register with here to save typing on the device 
-    //"password": "XXXXX",        //Note, if you wish to use this user name and password to be passed to the backend OData producer, choose Basic as the SSO mechanism
+    "user": "u4uv",          //For demo purposes, specify the user name and password you wish to register with here to save typing on the device 
+    "password": "xxxx",        //Note, if you wish to use this user name and password to be passed to the backend OData producer, choose Basic as the SSO mechanism
                                 //The AuthProxy plugin with the Logon plugin can respond to 401 Authentication challenges if the same credentials used to register are also used to make OData requests
                                 //Once set the credentials can be changed by calling sap.Logon.changePassword()
     //"passcode": "password",     //Hardcoding passwords and unlock passcodes are strictly for ease of use during development
